@@ -4,7 +4,7 @@
 
 ;; ---------------------------------------------------------------------------------------
 
-(defproject         re-com "lein-git-inject/version"
+(defproject         esnyder/re-com "2.12.1-SNAPSHOT"
   :description      "Reusable UI components for Reagent"
   :url              "https://github.com/day8/re-com.git"
   :license          {:name "MIT"}
@@ -51,7 +51,8 @@
   :deploy-repositories [["clojars"  {:sign-releases false
                                      :url "https://clojars.org/repo"
                                      :username :env/CLOJARS_USERNAME
-                                     :password :env/CLOJARS_TOKEN}]]
+                                     :password :env/CLOJARS_TOKEN}]
+                        ["local"    {:url "file:///Users/emile/.m2/repository"}]]
 
   ;; Exclude the demo and compiled files from the output of either 'lein jar' or 'lein install'
   :jar-exclusions   [#"(?:^|\/)re_demo\/" #"(?:^|\/)demo\/" #"(?:^|\/)compiled.*\/" #"html$"]
