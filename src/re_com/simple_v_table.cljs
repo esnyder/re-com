@@ -9,7 +9,8 @@
     [re-com.box      :refer [box]]
     [re-com.util     :refer [px deref-or-value assoc-in-if-empty]]
     [re-com.validate :refer [vector-of-maps? vector-atom? parts?]]
-    [re-com.v-table  :as    v-table]))
+    [re-com.v-table  :as    v-table]
+    [re-com.input-text :refer [input-text]]))
 
 
 (defn swap!-sort-by-column
@@ -122,7 +123,13 @@
                       (cell-style row column)
                       cell-style))}
      (get-in parts [:simple-row-item :attr]))
-   (row-label-fn row)])
+   (if-let [on-change (:on-change column)]
+     [input-text :model (str (row-label-fn row))
+      :width (px (- width 15))
+      :on-change (partial on-change (:id row) row-label-fn (row-label-fn row))
+      :style {:padding "0px 0px 0px 3px" :height "25px"}
+      :disabled? false]
+     (row-label-fn row))])
 
 
 (defn row-renderer
