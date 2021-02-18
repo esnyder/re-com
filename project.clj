@@ -4,7 +4,7 @@
 
 ;; ---------------------------------------------------------------------------------------
 
-(defproject         esnyder/re-com "2.12.1-SNAPSHOT"
+(defproject         esnyder/re-com "lein-git-inject/version"
   :description      "Reusable UI components for Reagent"
   :url              "https://github.com/day8/re-com.git"
   :license          {:name "MIT"}
