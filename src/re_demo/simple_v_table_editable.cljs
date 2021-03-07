@@ -72,6 +72,14 @@
         method-row-label-fn (fn [row] (case (:method row) :online [devices-icon] [store-icon]))
         delete-row-label-fn (fn [row] [md-icon-button :md-icon-name "zmdi-delete" :src (src-coordinates) :size :smaller :on-click (handler-fn (println "delete!"))])
 
+        on-blur-after-change (fn [focus-event]
+                               (let [to-focus-id (.-id (.-relatedTarget focus-event))]
+                                 (reagent/after-render
+                                  (fn [] (when-let [element (some-> js/document (.getElementById to-focus-id))]
+                                           (js/console.log "demo on-blur-after-change fn called with focus-event: " focus-event)
+                                           (. element focus)
+                                           (. element select))))))
+        
         edit-sales-rows!    (fn [row-id col-id old-val new-val]
                               (println "(edit-sales-rows! " row-id col-id old-val new-val)
                               (swap! sales-rows assoc-in [row-id col-id] new-val))]
@@ -333,6 +341,9 @@
                                                                                    {:id :method :header-label "Method" :row-label-fn method-row-label-fn   :width 100 :align "center" :vertical-align "middle"}
                                                                                    {:id :sales  :header-label "Sales"  :row-label-fn #(str "$" (:sales %)) :width 100 :align "right"  :vertical-align "middle" :sort-by {:key-fn :sales}}
                                                                                    {:id :units  :header-label "Units"  :row-label-fn :units                :width 100 :align "right"  :vertical-align "middle" :sort-by true}]
+
+                                                       :on-blur-after-change      on-blur-after-change
+                                                       
                                                        :fixed-column-count        @fixed-column-count
                                                        :fixed-column-border-color "#333"
 

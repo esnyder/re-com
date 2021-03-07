@@ -32,6 +32,7 @@
   (when include-args-desc?
     [{:name :model            :required true                   :type "string/nil | r/atom"      :validate-fn nillable-string-or-atom?  :description "text of the input (can be atom or value/nil)"}
      {:name :on-change        :required true                   :type "string[, done-fn] -> nil" :validate-fn fn?                       :description [:span [:code ":change-on-blur?"] " controls when it is called. Passed the current input string, and optionally a function to call (with no args) to signal that " [:code ":model"] " has reached a steady state to avoid displaying a prior value while processing."]}
+     {:name :on-blur-after-change :required false              :type "FocusEvent -> nil"        :validate-fn fn?                       :description [:span "if calling on-change because of a blur event, will call this function within the on-blur handler, after calling on-change. Passed the FocusEvent that the blur handler was called with."]}
      {:name :status           :required false                  :type "keyword"                  :validate-fn input-status-type?        :description [:span "validation status. " [:code "nil/omitted"] " for normal status or one of: " input-status-types-list]}
      {:name :status-icon?     :required false :default false   :type "boolean"                                                         :description [:span "when true, display an icon to match " [:code ":status"] " (no icon for nil)"]}
      {:name :status-tooltip   :required false                  :type "string"                   :validate-fn string?                   :description "displayed in status icon's tooltip"}
@@ -65,7 +66,7 @@
     (let [external-model (reagent/atom (deref-or-value model))  ;; Holds the last known external value of model, to detect external model changes
           internal-model (reagent/atom (if (nil? @external-model) "" @external-model))] ;; Create a new atom from the model to be used internally (avoid nil)]
       (fn input-text-base-render
-        [& {:keys [model on-change status status-icon? status-tooltip placeholder width height rows change-on-blur? on-alter validation-regex disabled? class style attr parts src]
+        [& {:keys [model on-change on-blur-after-change status status-icon? status-tooltip placeholder width height rows change-on-blur? on-alter validation-regex disabled? class style attr parts src]
             :or   {change-on-blur? true, on-alter identity}
             :as   args}]
         (or
@@ -93,7 +94,38 @@
                                           (on-change @internal-model reset-fn)
                                           (do
                                             (on-change @internal-model)
-                                            (reset-fn))))))]
+                                            (reset-fn))))))
+                
+                ;; Trying to deal with focus issues for the following case:
+                ;; Changing simple-v-table to allow editing of cell data by passing an on-change handler
+                ;; to the column definitions, then in the row-item renderer we make the item an input-text
+                ;; field if it has an on-change handler.
+                
+                ;; So, the whole simple-v-table model is a single atom (with a composite value),
+                ;; and when we modify it (via our on-change-handler), *all* the simple-v-table
+                ;; cells re-render? (I think that's what's going on.) So, since none of the actual
+                ;; DOM elements are the same, we don't maintain focus.
+                
+                ;; So, trying to fix this, adding a function that we will call inside the on-blur handler
+                ;; *after* calling the on-change-handler, and which we pass the FocusEvent that on-blur
+                ;; is processing. We can extract the id of the element that should be getting focus due
+                ;; to the blur event (if it has an id, that is), and then we can do something to give it
+                ;; focus after things settle.
+                
+                ;; By default, we try to set up a reagent/after-render call to focus the element.
+                ;; That works for me in the re-com demo, but not in my re-frame app.
+                
+                ;; FIXME: what happens if the id is *unstable* due to the effects of on-change-handler?
+                on-blur-after-change (or on-blur-after-change
+                                         (fn [focus-event]
+                                           (let [element-to-focus (.-relatedTarget focus-event)
+                                                 to-focus-id (.-id element-to-focus)]
+                                             (reagent/after-render
+                                              (fn [] (when-let [element (some-> js/document (.getElementById to-focus-id))]
+                                                       (js/console.log "input-text default on-blur-after-change: we're focusing on id '" to-focus-id "' which is element: " element)
+                                                       (. element focus)
+                                                       ;; FIXME: if element isn't text input, this causes an error. What's the right way to be safe?
+                                                       (. element select)))))))]
             (when (not= @external-model latest-ext-model) ;; Has model changed externally?
               (reset! external-model latest-ext-model)
               (reset! internal-model latest-ext-model))
@@ -149,27 +181,8 @@
                                             (when (and
                                                     change-on-blur?
                                                     (not= @internal-model @external-model))
-                                              (let [element-to-focus (.-relatedTarget event)
-                                                    to-focus-id (.-id element-to-focus)]
-                                                (on-change-handler)
-
-                                                ;; If this input-text field changes a model that causes the element-to-focus to
-                                                ;; re-render, then it loses focus due to the on-change-handler running.
-                                                ;; So, if we can (ie., if it has a stable html id), we ask reagent to focus it after
-                                                ;; the render (since 'it' has lost the focus by that point.)
-                                                ;; FIXME: what happens if the id is *unstable* due to the effects of on-change-handler?
-
-                                                ;; (This change was made in support of making simple-v-table fields editable by turning
-                                                ;; them into [re-com/input-text] fields; since the simple-v-table subscribes to the whole
-                                                ;; table data, modifying one piece via an input-text field means that all the other
-                                                ;; input-text fields re-render after the on-change, so making a change and hitting tab
-                                                ;; means you lose focus.)
-                                                (reagent/after-render
-                                                 (fn [] (when-let [element (some-> js/document (.getElementById to-focus-id))]
-                                                          (js/console.log "after-render we're focusing on id '" to-focus-id "' which is element: " element)
-                                                          (. element focus)
-                                                          ;; FIXME: if element isn't text input, this causes an error. What's the right way to be safe?
-                                                          (. element select)))))))
+                                              (on-change-handler)
+                                              (on-blur-after-change event)))
                              :on-key-up   (handler-fn
                                             (if disabled?
                                               (.preventDefault event)

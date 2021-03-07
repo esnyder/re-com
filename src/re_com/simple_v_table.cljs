@@ -105,7 +105,7 @@
 
 (defn row-item
   "Render a single row item (column) of a single row"
-  [row {:keys [width height cell-id-fn align vertical-align row-label-fn] :as column} cell-style parts]
+  [row {:keys [width height cell-id-fn align vertical-align row-label-fn] :as column} on-blur-after-change cell-style parts]
   (let [cell-id-fn (or cell-id-fn
                        (fn [row] (str (:id row) "." row-label-fn)))]
     [:div
@@ -129,6 +129,7 @@
        [input-text
         :model (str (row-label-fn row))
         :change-on-blur? true
+        :on-blur-after-change on-blur-after-change
         :attr {:id (cell-id-fn row)}
         :width "100%"
         :on-change (partial on-change (:id row) row-label-fn (row-label-fn row))
@@ -141,7 +142,7 @@
 
 (defn row-renderer
   ":row-renderer AND :row-header-renderer: Render a single row of the table data"
-  [columns on-click-row on-enter-row on-leave-row row-height row-style cell-style parts table-row-line-color row-index row]
+  [columns on-click-row on-enter-row on-leave-row on-blur-after-change row-height row-style cell-style parts table-row-line-color row-index row]
   (into
     [:div
      (merge
@@ -162,7 +163,7 @@
         :on-mouse-leave (when on-leave-row (handler-fn (on-leave-row row-index)))}
        (get-in parts [:simple-row :attr]))]
     (for [column columns]
-      [row-item row column cell-style parts])))
+      [row-item row column on-blur-after-change cell-style parts])))
 
 
 (def simple-v-table-exclusive-parts-desc
@@ -195,6 +196,7 @@
   (when include-args-desc?
     [{:name :model                     :required true                     :type "r/atom containing vec of maps"    :validate-fn vector-atom?                   :description "one element for each row in the table."}
      {:name :columns                   :required true                     :type "vector of maps"                   :validate-fn vector-of-maps?                :description [:span "one element for each column in the table. Must contain " [:code ":id"] "," [:code ":header-label"] "," [:code ":row-label-fn"] "," [:code ":width"] ", and " [:code ":height"] ". Optionally contains " [:code ":cell-id-fn"] ", " [:code ":disabled-fn"] ", " [:code ":sort-by"] ", " [:code ":align"] " and " [:code ":vertical-align"] ". " [:code ":sort-by"] " can be " [:code "true"] " or a map optionally containing " [:code ":key-fn"] " and " [:code ":comp"] " ala " [:code "cljs.core/sort-by"] "."]}
+     {:name :on-blur-after-change      :required false                    :type "FocusEvent -> nil"                :validate-fn ifn?                           :description "for table cells with an on-change handler that are rendered as input-text fields, pass this function as the :on-blur-after-change to the input-text field."}
      {:name :fixed-column-count        :required false :default 0         :type "integer"                          :validate-fn number?                        :description "the number of fixed (non-scrolling) columns on the left."}
      {:name :fixed-column-border-color :required false :default "#BBBEC0" :type "string"                           :validate-fn string?                        :description [:span "The CSS color of the horizontal border between the fixed columns on the left, and the other columns on the right. " [:code ":fixed-column-count"] " must be > 0 to be visible."]}
      {:name :column-header-height      :required false :default 31        :type "integer"                          :validate-fn number?                        :description [:span "px height of the column header section. Typically, equals " [:code ":row-height"] " * number-of-column-header-rows."]}
@@ -228,7 +230,7 @@
     (validate-args-macro simple-v-table-args-desc args src)
     (let [sort-by-column         (reagent/atom nil)]
       (fn simple-v-table-render
-        [& {:keys [model columns fixed-column-count fixed-column-border-color column-header-height column-header-renderer
+        [& {:keys [model columns on-blur-after-change fixed-column-count fixed-column-border-color column-header-height column-header-renderer
                    max-width max-rows row-height table-padding table-row-line-color on-click-row on-enter-row on-leave-row
                    row-style cell-style class parts src]
 
@@ -289,10 +291,10 @@
                      :column-header-height    column-header-height
 
                      ;; ===== Row header (section 2)
-                     :row-header-renderer     (partial row-renderer fixed-cols on-click-row on-enter-row on-leave-row row-height row-style cell-style parts table-row-line-color)
+                     :row-header-renderer     (partial row-renderer fixed-cols on-click-row on-enter-row on-leave-row on-blur-after-change row-height row-style cell-style parts table-row-line-color)
 
                      ;; ===== Rows (section 5)
-                     :row-renderer            (partial row-renderer content-cols on-click-row on-enter-row on-leave-row row-height row-style cell-style parts table-row-line-color)
+                     :row-renderer            (partial row-renderer content-cols on-click-row on-enter-row on-leave-row on-blur-after-change row-height row-style cell-style parts table-row-line-color)
                      :row-content-width       content-width
                      :row-height              row-height
                      :max-row-viewport-height (when max-rows (* max-rows row-height))
