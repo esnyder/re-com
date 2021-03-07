@@ -7,6 +7,7 @@
     [re-com.util                           :refer [px]]
     [re-demo.simple-v-table-sales          :as simple-v-table-sales]
     [re-demo.simple-v-table-periodic-table :as simple-v-table-periodic-table]
+    [re-demo.simple-v-table-editable       :as simple-v-table-editable]
     [re-demo.utils                         :refer [source-reference panel-title title2 title3 parts-table args-table status-text new-in-version]]
     [reagent.core                          :as    reagent]))
 
@@ -104,5 +105,16 @@
                                            :src      (src-coordinates)
                                            :size "15px"]
                                           [simple-v-table-periodic-table/demo]
-                                          [source-reference "for above simple-v-table" "src/re_demo/simple_v_table_periodic_table.cljs"]]]]]
+                                          [source-reference "for above simple-v-table" "src/re_demo/simple_v_table_periodic_table.cljs"]
+                                          [gap
+                                           :src      (src-coordinates)
+                                           :size "40px"]
+                                          [line :src      (src-coordinates)]
+                                          [title2 "Demo #3"]
+                                          [gap
+                                           :src      (src-coordinates)
+                                           :size "15px"]
+                                          [simple-v-table-editable/demo]
+                                          [source-reference "for above simple-v-table" "src/re_demo/simple_v_table_editable.cljs"]
+                                          ]]]]
                   [parts-table "simple-v-table" simple-v-table-parts-desc]]])))

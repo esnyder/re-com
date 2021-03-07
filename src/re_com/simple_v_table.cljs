@@ -105,31 +105,38 @@
 
 (defn row-item
   "Render a single row item (column) of a single row"
-  [row {:keys [width height align vertical-align row-label-fn] :as column} cell-style parts]
-  [:div
-   (merge
-     {:class (str "rc-simple-v-table-row-item " (get-in parts [:simple-row-item :class]))
-      :style (merge {:display        "inline-block"
-                     :padding        (str "0px " "12px")
-                     :width          (px width)
-                     :height         (px height)
-                     :text-align     align
-                     :vertical-align vertical-align
-                     :white-space    "nowrap"
-                     :overflow       "hidden"
-                     :text-overflow  "ellipsis"}
-                    (get-in parts [:simple-row-item :style])
-                    (if (fn? cell-style)
-                      (cell-style row column)
-                      cell-style))}
-     (get-in parts [:simple-row-item :attr]))
-   (if-let [on-change (:on-change column)]
-     [input-text :model (str (row-label-fn row))
-      :width (px (- width 15))
-      :on-change (partial on-change (:id row) row-label-fn (row-label-fn row))
-      :style {:padding "0px 0px 0px 3px" :height "25px"}
-      :disabled? false]
-     (row-label-fn row))])
+  [row {:keys [width height cell-id-fn align vertical-align row-label-fn] :as column} cell-style parts]
+  (let [cell-id-fn (or cell-id-fn
+                       (fn [row] (str (:id row) "." row-label-fn)))]
+    [:div
+     (merge
+      {:class (str "rc-simple-v-table-row-item " (get-in parts [:simple-row-item :class]))
+       :style (merge {:display        "inline-block"
+                      :padding        (str "0px " "4px")
+                      :width          (px width)
+                      :height         (px height)
+                      :text-align     align
+                      :vertical-align vertical-align
+                      :white-space    "nowrap"
+                      :overflow       "hidden"
+                      :text-overflow  "ellipsis"}
+                     (get-in parts [:simple-row-item :style])
+                     (if (fn? cell-style)
+                       (cell-style row column)
+                       cell-style))}
+      (get-in parts [:simple-row-item :attr]))
+     (if-let [on-change (:on-change column)]
+       [input-text
+        :model (str (row-label-fn row))
+        :change-on-blur? true
+        :attr {:id (cell-id-fn row)}
+        :width "100%"
+        :on-change (partial on-change (:id row) row-label-fn (row-label-fn row))
+        :style {:padding "0px 0px 0px 3px" :height "25px"}
+        :disabled? (if-let [disabled-fn (:disabled-fn column)]
+                     (disabled-fn (:id row) row-label-fn)
+                     false)]
+       (row-label-fn row))]))
 
 
 (defn row-renderer
@@ -187,7 +194,7 @@
 (def simple-v-table-args-desc
   (when include-args-desc?
     [{:name :model                     :required true                     :type "r/atom containing vec of maps"    :validate-fn vector-atom?                   :description "one element for each row in the table."}
-     {:name :columns                   :required true                     :type "vector of maps"                   :validate-fn vector-of-maps?                :description [:span "one element for each column in the table. Must contain " [:code ":id"] "," [:code ":header-label"] "," [:code ":row-label-fn"] "," [:code ":width"] ", and " [:code ":height"] ". Optionally contains " [:code ":sort-by"] ", " [:code ":align"] " and " [:code ":vertical-align"] ". " [:code ":sort-by"] " can be " [:code "true"] " or a map optionally containing " [:code ":key-fn"] " and " [:code ":comp"] " ala " [:code "cljs.core/sort-by"] "."]}
+     {:name :columns                   :required true                     :type "vector of maps"                   :validate-fn vector-of-maps?                :description [:span "one element for each column in the table. Must contain " [:code ":id"] "," [:code ":header-label"] "," [:code ":row-label-fn"] "," [:code ":width"] ", and " [:code ":height"] ". Optionally contains " [:code ":cell-id-fn"] ", " [:code ":disabled-fn"] ", " [:code ":sort-by"] ", " [:code ":align"] " and " [:code ":vertical-align"] ". " [:code ":sort-by"] " can be " [:code "true"] " or a map optionally containing " [:code ":key-fn"] " and " [:code ":comp"] " ala " [:code "cljs.core/sort-by"] "."]}
      {:name :fixed-column-count        :required false :default 0         :type "integer"                          :validate-fn number?                        :description "the number of fixed (non-scrolling) columns on the left."}
      {:name :fixed-column-border-color :required false :default "#BBBEC0" :type "string"                           :validate-fn string?                        :description [:span "The CSS color of the horizontal border between the fixed columns on the left, and the other columns on the right. " [:code ":fixed-column-count"] " must be > 0 to be visible."]}
      {:name :column-header-height      :required false :default 31        :type "integer"                          :validate-fn number?                        :description [:span "px height of the column header section. Typically, equals " [:code ":row-height"] " * number-of-column-header-rows."]}

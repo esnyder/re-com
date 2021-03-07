@@ -149,12 +149,39 @@
                                             (when (and
                                                     change-on-blur?
                                                     (not= @internal-model @external-model))
-                                              (on-change-handler)))
+                                              (let [element-to-focus (.-relatedTarget event)
+                                                    to-focus-id (.-id element-to-focus)]
+                                                (on-change-handler)
+
+                                                ;; If this input-text field changes a model that causes the element-to-focus to
+                                                ;; re-render, then it loses focus due to the on-change-handler running.
+                                                ;; So, if we can (ie., if it has a stable html id), we ask reagent to focus it after
+                                                ;; the render (since 'it' has lost the focus by that point.)
+                                                ;; FIXME: what happens if the id is *unstable* due to the effects of on-change-handler?
+
+                                                ;; (This change was made in support of making simple-v-table fields editable by turning
+                                                ;; them into [re-com/input-text] fields; since the simple-v-table subscribes to the whole
+                                                ;; table data, modifying one piece via an input-text field means that all the other
+                                                ;; input-text fields re-render after the on-change, so making a change and hitting tab
+                                                ;; means you lose focus.)
+                                                (reagent/after-render
+                                                 (fn [] (when-let [element (some-> js/document (.getElementById to-focus-id))]
+                                                          (js/console.log "after-render we're focusing on id '" to-focus-id "' which is element: " element)
+                                                          (. element focus)
+                                                          ;; FIXME: if element isn't text input, this causes an error. What's the right way to be safe?
+                                                          (. element select)))))))
                              :on-key-up   (handler-fn
                                             (if disabled?
                                               (.preventDefault event)
                                               (case (.-which event)
-                                                13 (on-change-handler)
+                                                13 (let [this-element (.-target event)
+                                                         this-id (.-id this-element)]
+                                                     (on-change-handler)
+                                                     ;; Same trick as for the on-blur above; we lose focus after modifying the content.
+                                                     (reagent/after-render
+                                                      (fn [] (when-let [element (some-> js/document (.getElementById this-id))]
+                                                               (. element focus)))))
+
                                                 27 (reset! internal-model @external-model)
                                                 true)))}
                             attr)]]
