@@ -250,6 +250,7 @@
      {:name :status-icon?            :required false :default false   :type "boolean"                                              :description [:span "when true, display an icon to match " [:code ":status"] " (no icon for nil)"]}
      {:name :status-tooltip          :required false                  :type "string"               :validate-fn string?            :description "displayed in status icon's tooltip"}
      {:name :placeholder             :required false                  :type "string"               :validate-fn string?            :description "background text shown when empty"}
+     {:name :input-id                :required false                  :type "string"               :validate-fn string?            :description "set the id of the input-text html input element (so we can focus it, for example)"}
      {:name :width                   :required false :default "250px" :type "string"               :validate-fn string?            :description "standard CSS width setting for this input"}
      {:name :height                  :required false                  :type "string"               :validate-fn string?            :description "standard CSS height setting for this input"}
      {:name :disabled?               :required false :default false   :type "boolean | r/atom"                                     :description "if true, the user can't interact (input anything)"}
@@ -272,7 +273,7 @@
         [& {:as   args
             :keys [data-source _on-change _change-on-blur? _immediate-model-update? model _debounce-delay render-suggestion _suggestion-to-string _rigid?
                    ;; forwarded to wrapped `input-text`:
-                   status status-icon? status-tooltip placeholder width height disabled? class style attr parts src]}]
+                   status status-icon? status-tooltip placeholder input-id width height disabled? class style attr parts src]}]
         (or
           (validate-args-macro typeahead-args-desc args src)
           (let [{:as state :keys [suggestions waiting? suggestion-active-index external-model]} @state-atom
@@ -302,7 +303,8 @@
                          :placeholder    placeholder
                          :on-change      (partial input-text-on-change! state-atom)
                          :change-on-blur? false
-                         :attr {:on-key-down (partial input-text-on-key-down! state-atom)
+                         :attr {:id input-id
+                                :on-key-down (partial input-text-on-key-down! state-atom)
                                 :on-focus #()
                                 ;; on-blur should behave the same as tabbing off
                                 :on-blur #(swap! state-atom input-text-will-blur)}]
